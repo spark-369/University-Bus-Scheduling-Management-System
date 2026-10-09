@@ -1,0 +1,5 @@
+// Prevent ESLint from linting generated/build output.
+next
+node_modules
+out
+build

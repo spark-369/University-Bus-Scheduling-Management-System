@@ -1,0 +1,283 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  DRIVER
+  PASSENGER
+}
+
+enum BusStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum ScheduleType {
+  MORNING
+  NOON
+  EVENING
+  SPECIAL
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum NotificationType {
+  SCHEDULE_CHANGE
+  DELAY
+  EMERGENCY
+  BUS_ARRIVING
+  BOOKING_CONFIRMATION
+  BUS_PASS_CREATED
+  MAINTENANCE_CREATED
+  ROUTE_CREATED
+  TRIP_STARTED
+  FEEDBACK_RECEIVED
+  STOP_CREATED
+  TRIP_SCHEDULED
+}
+
+enum MaintenanceType {
+  ROUTINE
+  REPAIR
+  BREAKDOWN
+  INSPECTION
+}
+
+// User Model
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String
+  phone        String?
+  role         UserRole
+  passengerId  String?  @unique
+  licenseNumber String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  bookings     Booking[]
+  feedbacks    Feedback[]
+  activityLogs ActivityLog[]
+  busPass      BusPass?
+  bus          Bus?
+  trips        Trip[]
+}
+
+// Bus Model
+model Bus {
+  id           String   @id @default(cuid())
+  busNumber    String   @unique
+  plateNumber  String   @unique
+  capacity     Int
+  model        String?
+  year         Int?
+  status       BusStatus @default(ACTIVE)
+  lastMaintenance DateTime?
+  fuelType     String   @default("DIESEL")
+  mileage      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  driver       User?    @relation(fields: [driverId], references: [id])
+  driverId     String?  @unique
+  schedules    Schedule[]
+  bookings     Booking[]
+  trips        Trip[]
+  maintenance  Maintenance[]
+}
+
+// Route Model
+model Route {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  isActive     Boolean  @default(true)
+  estimatedDuration Int // in minutes
+  distance     Float    // in km
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  stops        Stop[]
+  schedules    Schedule[]
+  trips        Trip[]
+}
+
+// Stop Model
+model Stop {
+  id           String   @id @default(cuid())
+  name         String
+  latitude     Float
+  longitude    Float
+  address      String?
+  order        Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  route        Route    @relation(fields: [routeId], references: [id])
+  routeId      String
+  bookings     Booking[]
+}
+
+// Schedule Model
+model Schedule {
+  id           String   @id @default(cuid())
+  routeId      String
+  busId        String
+  scheduleType ScheduleType
+  departureTime DateTime
+  arrivalTime  DateTime
+  daysOfWeek   String[] // ["MON", "TUE", "WED", "THU", "FRI"]
+  isActive     Boolean  @default(true)
+  isSpecial    Boolean  @default(false)
+  specialDate  DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  route        Route    @relation(fields: [routeId], references: [id])
+  bus          Bus      @relation(fields: [busId], references: [id])
+  trips        Trip[]
+}
+
+// Trip Model - Actual trip instance
+model Trip {
+  id           String   @id @default(cuid())
+  scheduleId   String
+  busId        String   
+  routeId      String
+  driverId     String   
+  startTime    DateTime
+  endTime      DateTime?
+  status       String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  actualStartTime DateTime?
+  actualEndTime   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schedule     Schedule @relation(fields: [scheduleId], references: [id])
+  bus          Bus      @relation(fields: [busId], references: [id])
+  route        Route    @relation(fields: [routeId], references: [id])
+  driver       User     @relation(fields: [driverId], references: [id])
+  bookings     Booking[]
+  feedbacks    Feedback[]
+}
+
+// Booking Model
+model Booking {
+  id           String   @id @default(cuid())
+  userId       String
+  busId        String
+  stopId       String
+  tripId       String?
+  bookingDate  DateTime
+  status       BookingStatus @default(PENDING)
+  seatNumber   String?
+  qrCode       String?  @unique
+  qrCodeData   String?
+  isUsed       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id])
+  bus          Bus      @relation(fields: [busId], references: [id])
+  stop         Stop     @relation(fields: [stopId], references: [id])
+  trip         Trip?    @relation(fields: [tripId], references: [id])
+}
+
+// BusPass Model - Digital bus pass
+model BusPass {
+  id           String   @id @default(cuid())
+  passengerId  String   @unique
+  passNumber   String   @unique
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean  @default(true)
+  qrCode       String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  passenger    User  @relation(fields: [passengerId], references: [id])
+}
+
+// Maintenance Model
+model Maintenance {
+  id           String   @id @default(cuid())
+  busId        String
+  type         MaintenanceType
+  status       MaintenanceStatus @default(SCHEDULED)
+  description  String
+  scheduledDate DateTime
+  completedDate DateTime?
+  cost         Float?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bus          Bus      @relation(fields: [busId], references: [id])
+}
+
+// Notification Model
+model Notification {
+  id           String   @id @default(cuid())
+  userRole     String
+  link         String
+  type         NotificationType
+  title        String
+  message      String
+  isRead       Boolean  @default(false)
+  sentAt       DateTime @default(now())
+}
+
+// Feedback Model
+model Feedback {
+  id           String   @id @default(cuid())
+  userId       String
+  tripId       String?
+  rating       Int      // 1-5
+  comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id])
+  trip         Trip?    @relation(fields: [tripId], references: [id])
+}
+
+// ActivityLog Model - Audit trail
+model ActivityLog {
+  id           String   @id @default(cuid())
+  userId       String
+  action       String
+  details      String?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id])
+}

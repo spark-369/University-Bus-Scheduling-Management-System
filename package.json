@@ -1,19 +1,46 @@
 {
-  "name": "my-app",
-  "version": "0.1.0",
-  "private": true,
+  "name": "bus-scheduling-management",
+  "version": "1.0.0",
+  "description": "University Bus Scheduling Management System API",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "build": "prisma generate && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
-    "next": "16.4.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "@prisma/client": "^6.0.0",
+    "axios": "^1.13.5",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^3.6.0",
+    "html5-qrcode": "^2.3.8",
+    "jsonwebtoken": "^9.0.2",
+    "leaflet": "^1.9.4",
+    "next": "^14.2.0",
+    "qrcode": "^1.5.3",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-icons": "^5.5.0",
+    "react-leaflet": "^4.2.1",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
-    "tailwindcss": "^4"
+    "@tailwindcss/postcss": "^4.1.18",
+    "autoprefixer": "^10.4.24",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.0",
+    "postcss": "^8.5.6",
+    "prisma": "^6.0.0",
+    "tailwindcss": "^4.1.18"
   }
 }
